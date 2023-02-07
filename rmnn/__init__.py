@@ -11,8 +11,11 @@ __copyright__ = 'Copyright 2023 Zhemin Li'
 
 
 ## Top Level Modules
-from rmnn import apps,frame,toolbox,represent
-__all__ = ["apps","frame","toolbox","represent"]
+from rmnn import toolbox,represent
+# from rmnn.represent import get_nn
+# TODO 最后只需要开放app即可
+__all__ = ["toolbox","represent"]
+# "apps","frame","toolbox","represent"]
 
 ### Representations
 # TODO add 
@@ -39,3 +42,4 @@ __all__ = ["apps","frame","toolbox","represent"]
 
 
 ### Low-level inverse problems solving
+
