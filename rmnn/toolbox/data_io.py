@@ -19,6 +19,7 @@ def load_data(data_path,data_type='gray_img',data_shape=None):
         return img
     elif data_type == 'numpy':
         return np.load(data_path)
+    # TODO 整合倚斯的几种测试数据
     else:
         raise('Wrong data type = ',data_type)
 
