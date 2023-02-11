@@ -1,14 +1,17 @@
 from torch import nn
 import torch
 from .siren import SirenNet
+from .inr import INR
 
 class SplitINR(nn.Module):
-    def __init__(self, dim_in, dim_hidden, dim_out, num_layers,mode='tucker',net_name='siren'):
+    def __init__(self, dim_in, dim_hidden, dim_out, num_layers,mode='tucker',act_name='siren'):
         super().__init__()
         net_list = []
         for i in range(dim_in):
-            if net_name == 'siren':
+            if act_name == 'siren':
                 net_list.append(SirenNet(1,dim_hidden,dim_out[i],num_layers))
+            else:
+                net_list.append(INR(1,dim_hidden,dim_out[i],num_layers,activation=act_name))
         self.net_list = nn.ModuleList(net_list)
         self.mode = mode
         if mode == 'tucker':

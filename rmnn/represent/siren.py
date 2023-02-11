@@ -76,7 +76,7 @@ class SirenNet(nn.Module):
                 w0 = layer_w0,
                 use_bias = use_bias,
                 is_first = is_first,
-                drop_out = drop_out[ind]
+                drop_out = 0
             ))
 
         final_activation = nn.Identity() if not exists(final_activation) else final_activation
