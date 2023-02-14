@@ -59,15 +59,16 @@ def add_space(oristr):
 def get_cor(xshape,xrange):  
     cor_list = []
     for i,point_num in enumerate(xshape):
-        if i == 0:
-            if len(xshape) == 1:
-                cor_list.append(np.linspace(-xrange,xrange,point_num))
-            else:
-                cor_list.append(np.linspace(-xrange,xrange,xshape[1]))
-        elif i == 1:
-            cor_list.append(np.linspace(-xrange,xrange,xshape[0]))
-        else:
-            cor_list.append(np.linspace(-xrange,xrange,point_num))
+        cor_list.append(np.linspace(-xrange,xrange,point_num))
+        # if i == 0:
+        #     if len(xshape) == 1:
+        #         cor_list.append(np.linspace(-xrange,xrange,point_num))
+        #     else:
+        #         cor_list.append(np.linspace(-xrange,xrange,xshape[1]))
+        # elif i == 1:
+        #     cor_list.append(np.linspace(-xrange,xrange,xshape[0]))
+        # else:
+        #     cor_list.append(np.linspace(-xrange,xrange,point_num))
     corv_list = np.meshgrid(*cor_list)
     coor = np.stack(corv_list,axis=len(xshape))
     einstr = add_space(abc_str[:len(xshape)])+' '+abc_str[len(xshape)]+' -> ('+add_space(abc_str[:len(xshape)])+') '+abc_str[len(xshape)]

@@ -5,6 +5,8 @@ from .opt import get_opt
 from rmnn.toolbox.data_display import display
 import numpy as np
 import torch
+from .reg import regularizer
+
 # if torch.cuda.is_available():
 #     cuda_if = True
 # else:
@@ -19,38 +21,39 @@ def to_device(obj,device):
     return obj
 
 class BasicModule(object):
-    def __init__(self,device=0,fid_name='mse',net_name='siren',parameters=None,opt_name='Adam',lr=1e-3):
+    def __init__(self,device=0,fid_name='mse',net_name='siren',parameters=None,opt_name='Adam',lr=1e-3,weight_decay=0,reg_parameters={}):
         # super().__init__() for the subcalss
         self.device = device
         self.init_net(net=net_name,parameters=parameters)
-        self.init_opt(opt_name,lr)
-        self.init_reg()
+        self.init_opt(opt_name,lr,weight_decay)
+        self.init_reg(reg_parameters)
         self.log_dict = {}
         self.fid_name = fid_name
 
     def init_net(self,net='siren',parameters=None):
         self.net = get_nn(net=net,parameters=parameters)
-        to_device(self.net,self.device)
+        self.net = to_device(self.net,self.device)
 
-    def init_opt(self,opt_name,lr=1e-3):
-        self.opt = get_opt(opt_name,self.net.parameters(),lr=lr)
+    def init_opt(self,opt_name,lr=1e-3,weight_decay=0):
+        self.opt = get_opt(opt_name,self.net.parameters(),lr=lr,weight_decay=weight_decay)
 
-    def init_reg(self):
-        pass
+    def init_reg(self,parameters):
+        self.reg = regularizer(parameters,device=self.device)
 
-    def cal_reg(self):
-        return 0
+    def cal_reg(self,data,data_shape):
+        return self.reg.cal(data,data_shape,self.net)
 
     def update_para(self,loss_all,update_fid_if=True,update_reg_if=True):
         # update reg
         self.opt.zero_grad()
+        self.reg.zero_grad()
         loss_all.backward()
         if update_reg_if:
-            pass
+            self.reg.step()
         if update_fid_if:
             self.opt.step()
 
-    def step(self,data):
+    def step(self,data,data_shape=None):
         loss_fid = 0
         if isinstance(data[-1],np.ndarray):
             # split inr mode
@@ -60,7 +63,7 @@ class BasicModule(object):
             data_in = to_device(data_in,self.device)
             pre = self.net(cor_in)
             loss_fid = cal(self.fid_name,pre[mask_in==1],data_in[mask_in==1])
-            loss_reg = self.cal_reg()
+            loss_reg = self.cal_reg(data,data_shape)
             self.update_para(loss_fid+loss_reg,update_fid_if=True,update_reg_if=True)
         else:
             # inr mode
@@ -69,7 +72,7 @@ class BasicModule(object):
                 real = to_device(real,self.device)
                 pre = self.net(x_in)
                 loss_fid_now = cal(self.fid_name,pre,real)
-                loss_reg_now = self.cal_reg()
+                loss_reg_now = self.cal_reg(data,data_shape)
                 self.update_para(loss_fid_now+loss_reg_now,update_fid_if=True,update_reg_if=True)
                 loss_fid += loss_fid_now
         
@@ -81,39 +84,48 @@ class BasicModule(object):
         else:
             self.log_dict[name].append(content)
 
-    def fit(self,data,epoch=1,verbose=True):
+    def fit(self,data,epoch=1,verbose=True,data_shape=None):
         for epoch_now in range(epoch):
-            self.step(data)
+            self.step(data,data_shape)
             if verbose and epoch_now%(epoch//10)==0:
                 print('epoch ',epoch_now,', loss = ',self.log_dict['loss_fid'][-1])
 
 
-    def test(self,data,data_shape,data_type='img',show_if=False):
+    def test(self,data,data_shape,data_type='img',show_if=False,verbose_if=True,eval_if=False):
+        # 去噪任务应该多引进一个真实值
+        if eval_if:
+            self.net.eval()
         mse = 0
         if isinstance(data[-1],np.ndarray):
             # split inr mode
-            cor_in,data_in,mask_in = data
+            cor_in,data_in,_ = data
             for i,cor_split in enumerate(cor_in):
                 cor_in[i] = to_device(cor_split,self.device)
-            pre = self.net(cor_in).detach().cpu().numpy()
-            print(pre.shape)
+            pret = self.net(cor_in)
+            pre = pret.detach().cpu().numpy()
+            #print(pre.shape)
             data_in = data_in.detach().cpu().numpy()
             mse = np.mean((pre-data_in)**2)
             
         else:
             # inr mode
-            pre = np.zeros((0,1))
+            pret = torch.zeros((0,1))
+            pret = to_device(pret,self.device)
             for x_in,real in data[2]:
                 x_in = to_device(x_in,self.device)
-                pre_now = self.net(x_in).detach().cpu().numpy()
+                pre_nowt = self.net(x_in)
+                pre_now = pre_nowt.detach().cpu().numpy()
                 real = real.detach().cpu().numpy()
                 mse += np.sum((pre_now-real)**2)
-                pre = np.concatenate([pre,pre_now],axis=0)
-            mse = mse/pre.shape[0]
-        
-        print('MSE=',mse)
+                pret = torch.cat([pret,pre_nowt],dim=0)
+            mse = mse/pret.shape[0]
+        if verbose_if:
+            print('MSE=',mse,'PSNR=',10*np.log10(1/mse))
         if show_if:
-            display(pre.reshape(data_shape),data_type=data_type)
+            display(pret.detach().cpu().numpy().reshape(data_shape),data_type=data_type)
+        if eval_if:
+            self.net.train()
+        return pret.reshape(data_shape)
 
 
 

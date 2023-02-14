@@ -13,6 +13,12 @@ def display(data,data_type='img'):
             plt.imshow(data[:,:,(2,1,0)],vmin=0,vmax=1)
         plt.axis('off')
         plt.show()
+    elif data_type == 'video':
+        if data.ndim == 3:
+            plt.imshow(data,vmin=0,vmax=1)
+        else:
+            plt.imshow(data[:,:,:,0],vmin=0,vmax=1)
+        plt.axis('off')
+        plt.show()
     else:
-
         raise('Wrong data type = ',data_type)

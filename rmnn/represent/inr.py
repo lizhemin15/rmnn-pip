@@ -37,9 +37,9 @@ class Layer(nn.Module):
     def init_(self, weight, bias):
         dim = self.dim_in
         w_std = 1 / dim
-        if self.init_mode == None or self.init_mode == 'xavier_uniform':
+        if self.init_mode == 'xavier_uniform':
             weight = nn.init.xavier_uniform_(weight,gain=cal_gain(self.activation_name))
-        elif self.init_mode == 'xavier_normal':
+        elif self.init_mode == None or self.init_mode == 'xavier_normal':
             weight = nn.init.xavier_normal_(weight,gain=cal_gain(self.activation_name))
         elif self.init_mode == 'kaiming_uniform':
             act = self.activation_name if self.activation_name in valid_act_list else 'relu'
