@@ -15,7 +15,7 @@ def display(data,data_type='img'):
         plt.show()
     elif data_type == 'video':
         if data.ndim == 3:
-            plt.imshow(data,vmin=0,vmax=1)
+            plt.imshow(data[:,:,0],'gray',vmin=0,vmax=1)
         else:
             plt.imshow(data[:,:,:,0],vmin=0,vmax=1)
         plt.axis('off')

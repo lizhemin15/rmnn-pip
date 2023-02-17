@@ -1,5 +1,5 @@
 import torch as t
-
+from lion_pytorch import Lion
 
 def get_opt(opt_type='Adam',parameters=None,lr=1e-3,weight_decay=0):
     # Initial the optimizer of parameters in network
@@ -31,6 +31,8 @@ def get_opt(opt_type='Adam',parameters=None,lr=1e-3,weight_decay=0):
         optimizer = t.optim.RMSprop(parameters,lr=lr)
     elif opt_type == 'Rprop':
         optimizer = t.optim.Rprop(parameters,lr=lr)
+    elif opt_type == 'Lion':
+        optimizer = Lion(parameters, lr = lr)
     else:
         raise('Wrong optimization type')
     return optimizer

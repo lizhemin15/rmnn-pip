@@ -22,19 +22,31 @@ def load_data(data_path,data_type='gray_img',data_shape=None,down_sample=[1,1,1]
     elif data_type == 'syn':
         if data_path == 'circle':
             return syn_circle(data_shape)
-    elif data_type == 'video':
+    elif data_type == 'rgb_video' or data_type == 'gray_video':
         cap = cv2.VideoCapture(data_path)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         _, frame = cap.read()
-        frame = frame[::down_sample[0],::down_sample[1],:]
-        vd_np = np.zeros((frame.shape[0],frame.shape[1],3,frame_count))
-        cap = cv2.VideoCapture(data_path)
-        for i in range(vd_np.shape[-1]):
-            _, frame = cap.read()
-            frame = frame.astype(np.float32)/255.0
+        if data_type == 'rgb_video':
             frame = frame[::down_sample[0],::down_sample[1],:]
-            vd_np[:,:,:,i] = frame[:,:,(2,1,0)]
-        return vd_np[:,:,:,::down_sample[2]]
+            vd_np = np.zeros((frame.shape[0],frame.shape[1],3,frame_count))
+            cap = cv2.VideoCapture(data_path)
+            for i in range(vd_np.shape[-1]):
+                _, frame = cap.read()
+                frame = frame.astype(np.float32)/255.0
+                frame = frame[::down_sample[0],::down_sample[1],:]
+                vd_np[:,:,:,i] = frame[:,:,(2,1,0)]
+            return vd_np[:,:,:,::down_sample[2]]
+        else:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frame = frame[::down_sample[0],::down_sample[1]]
+            vd_np = np.zeros((frame.shape[0],frame.shape[1],frame_count))
+            cap = cv2.VideoCapture(data_path)
+            for i in range(vd_np.shape[-1]):
+                _, frame = cap.read()
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)/255.0
+                frame = frame[::down_sample[0],::down_sample[1]]
+                vd_np[:,:,i] = frame
+            return vd_np[:,:,::down_sample[2]]
     else:
         raise('Wrong data type = ',data_type)
 
