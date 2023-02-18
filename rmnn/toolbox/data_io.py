@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import scipy.misc
+import matplotlib.pyplot as plt
 
 
 
@@ -52,7 +52,10 @@ def load_data(data_path,data_type='gray_img',data_shape=None,down_sample=[1,1,1]
 
 def save_data(data_path,data_type='numpy',data=None):
     if data_type == 'img':
-        scipy.misc.toimage(data, cmin=0.0, cmax=1.0).save(data_path)
+        if data.ndim == 2:
+            plt.imsave(data_path, np.clip(data,0,1))
+        else:
+            plt.imsave(data_path, np.clip(data[:,:,(2,1,0)],0,1))
     elif data_type == 'numpy':
         np.save(data_path,data)
     else:

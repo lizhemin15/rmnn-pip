@@ -6,6 +6,8 @@ from rmnn.toolbox.data_display import display
 import numpy as np
 import torch
 from .reg import regularizer
+from rmnn.toolbox.data_io import save_data
+
 
 # if torch.cuda.is_available():
 #     cuda_if = True
@@ -91,7 +93,7 @@ class BasicModule(object):
                 print('epoch ',epoch_now,', loss = ',self.log_dict['loss_fid'][-1])
 
 
-    def test(self,data,data_shape,data_type='img',show_if=False,verbose_if=True,eval_if=False):
+    def test(self,data,data_shape,data_type='img',show_if=False,verbose_if=True,eval_if=False,data_path=None):
         # 去噪任务应该多引进一个真实值
         if eval_if:
             self.net.eval()
@@ -125,6 +127,8 @@ class BasicModule(object):
             display(pret.detach().cpu().numpy().reshape(data_shape),data_type=data_type)
         if eval_if:
             self.net.train()
+        if data_path != None:
+            save_data(data_path,data_type=data_type,data=pret.detach().cpu().numpy().reshape(data_shape))
         return pret.reshape(data_shape)
 
 
