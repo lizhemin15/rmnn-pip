@@ -28,14 +28,28 @@ def load_mask(mask_type='random',random_rate=0.0,mask_path=None,data_shape=None,
         return np.load(mask_path)
     elif mask_type == 'down_sample':
         mask = np.zeros(mask_shape)
-        if len(mask_shape) == 1:
-            mask[::down_sample_rate] = 1
-        elif len(mask_shape) == 2:
-            mask[::down_sample_rate,::down_sample_rate] = 1
-        elif len(mask_shape) == 3:
-            mask[::down_sample_rate,::down_sample_rate,::down_sample_rate] = 1
+        if isinstance(down_sample_rate,int):
+            if len(mask_shape) == 1:
+                mask[::down_sample_rate] = 1
+            elif len(mask_shape) == 2:
+                mask[::down_sample_rate,::down_sample_rate] = 1
+            elif len(mask_shape) == 3:
+                mask[::down_sample_rate,::down_sample_rate,::down_sample_rate] = 1
+            elif len(mask_shape) == 4:
+                mask[::down_sample_rate,::down_sample_rate,::down_sample_rate,::down_sample_rate] = 1
+            else:
+                raise('Do not support the dim of tensor > 4')
         else:
-            raise('Do not support the dim of tensor > 3')
+            if len(mask_shape) == 1:
+                mask[::down_sample_rate[0]] = 1
+            elif len(mask_shape) == 2:
+                mask[::down_sample_rate[0],::down_sample_rate[1]] = 1
+            elif len(mask_shape) == 3:
+                mask[::down_sample_rate[0],::down_sample_rate[1],::down_sample_rate[2]] = 1
+            elif len(mask_shape) == 4:
+                mask[::down_sample_rate[0],::down_sample_rate[1],::down_sample_rate[2],::down_sample_rate[3]] = 1
+            else:
+                raise('Do not support the dim of tensor > 4')
         return mask
     else:
         raise('Wrong mask type = ',mask_type)
