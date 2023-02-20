@@ -29,6 +29,7 @@ class SplitINR(nn.Module):
         pre = []
         for i in range(len(self.net_list)):
             pre.append(self.net_list[i](x[i]))
+        self.pre = pre
         return self.tucker_product(self.G,pre)
         
     def tucker_product(self,G,pre):

@@ -14,8 +14,10 @@ def load_data(data_path,data_type='gray_img',data_shape=None,down_sample=[1,1,1]
             img = cv2.resize(img,(data_shape[1],data_shape[0]))
         if data_type == 'gray_img':
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)/255.0
+            img = img[::down_sample[0],::down_sample[1]]
         else:
             img = img.astype(np.float32)/255.0
+            img = img[::down_sample[0],::down_sample[1],:]
         return img
     elif data_type == 'numpy':
         return np.load(data_path)

@@ -55,11 +55,11 @@ class BasicModule(object):
         if update_fid_if:
             self.opt.step()
 
-    def step(self,data,data_shape=None):
+    def step(self,data,data_shape=None,val_if=False):
         loss_fid = 0
         if isinstance(data[-1],np.ndarray):
             # split inr mode
-            cor_in,data_in,mask_in = data
+            cor_in,data_in,_,mask_in = data
             for i,cor_split in enumerate(cor_in):
                 cor_in[i] = to_device(cor_split,self.device)
             data_in = to_device(data_in,self.device)
@@ -67,17 +67,42 @@ class BasicModule(object):
             loss_fid = cal(self.fid_name,pre[mask_in==1],data_in[mask_in==1])
             loss_reg = self.cal_reg(data,data_shape)
             self.update_para(loss_fid+loss_reg,update_fid_if=True,update_reg_if=True)
+            self.log('loss_reg',loss_reg.detach().cpu().numpy())
+            if val_if:
+                unobs = cal(self.fid_name,pre[mask_in==0],data_in[mask_in==0])
+                self.log('loss_unobs',unobs.detach().cpu().numpy())
+
         else:
             # inr mode
+            val_all = 0
+            num_all = 0
             for x_in,real in data[0]:
                 x_in = to_device(x_in,self.device)
                 real = to_device(real,self.device)
                 pre = self.net(x_in)
-                loss_fid_now = cal(self.fid_name,pre,real)
+                loss_fid_now = cal(self.fid_name,pre,real)*x_in.shape[0]
+                # TODO loss 算mse时有问题
                 loss_reg_now = self.cal_reg(data,data_shape)
                 self.update_para(loss_fid_now+loss_reg_now,update_fid_if=True,update_reg_if=True)
                 loss_fid += loss_fid_now
-        
+                num_all += x_in.shape[0]
+            loss_fid = loss_fid/num_all
+            num_all = 0
+            if val_if:
+                for x_in,real in data[1]:
+                    x_in = to_device(x_in,self.device)
+                    real = to_device(real,self.device)
+                    pre = self.net(x_in)
+                    val_now = cal(self.fid_name,pre,real)*x_in.shape[0]
+                    val_now = val_now.detach().cpu().numpy()
+                    num_all += x_in.shape[0]
+                    val_all += val_now
+                if num_all == 0:
+                    val_all = 0
+                else:
+                    val_all = val_all/num_all
+                self.log('loss_unobs',val_all)
+
         self.log('loss_fid',loss_fid.detach().cpu().numpy())
 
     def log(self,name,content):
@@ -86,9 +111,9 @@ class BasicModule(object):
         else:
             self.log_dict[name].append(content)
 
-    def fit(self,data,epoch=1,verbose=True,data_shape=None):
+    def fit(self,data,epoch=1,verbose=True,data_shape=None,val_if=False):
         for epoch_now in range(epoch):
-            self.step(data,data_shape)
+            self.step(data,data_shape,val_if)
             if verbose and epoch_now%(epoch//10)==0:
                 print('epoch ',epoch_now,', loss = ',self.log_dict['loss_fid'][-1])
 
@@ -100,14 +125,14 @@ class BasicModule(object):
         mse = 0
         if isinstance(data[-1],np.ndarray):
             # split inr mode
-            cor_in,data_in,_ = data
+            cor_in,_,data_real,_ = data
             for i,cor_split in enumerate(cor_in):
                 cor_in[i] = to_device(cor_split,self.device)
             pret = self.net(cor_in)
             pre = pret.detach().cpu().numpy()
             #print(pre.shape)
-            data_in = data_in.detach().cpu().numpy()
-            mse = np.mean((pre-data_in)**2)
+            data_real = data_real.detach().cpu().numpy()
+            mse = np.mean((pre-data_real)**2)
             
         else:
             # inr mode
@@ -121,15 +146,16 @@ class BasicModule(object):
                 mse += np.sum((pre_now-real)**2)
                 pret = torch.cat([pret,pre_nowt],dim=0)
             mse = mse/pret.shape[0]
+        psnr = 10*np.log10(1/mse)
         if verbose_if:
-            print('MSE=',mse,'PSNR=',10*np.log10(1/mse))
+            print('MSE=',mse,'PSNR=',psnr)
         if show_if:
             display(pret.detach().cpu().numpy().reshape(data_shape),data_type=data_type)
         if eval_if:
             self.net.train()
         if data_path != None:
             save_data(data_path,data_type=data_type,data=pret.detach().cpu().numpy().reshape(data_shape))
-        return pret.reshape(data_shape)
+        return pret.reshape(data_shape),psnr
 
 
 

@@ -3,9 +3,11 @@ from .siren import SirenNet
 from torch import nn
 import numpy as np
 from .representer import get_nn
+from einops import rearrange
 
 learned_list = ['inrr','splitinrr','air','splitair']
 fixed_list = ['tv','lap']
+abc_str = 'abcdefghijklmnopqrstuvwxyz'
 
 def to_device(obj,device):
     if t.cuda.is_available() and device != 'cpu':
@@ -29,6 +31,10 @@ class regularizer(object):
         self.reg_dict = {}
         for reg_name in self.parameters.keys():
             parameter = self.parameters[reg_name]
+            if parameter[1] == 'row':
+                parameter[1] = 0
+            elif parameter[1] == 'col':
+                parameter[1] = 1
             self.reg_dict[reg_name] = self.get_reg(reg_name,parameter)
             # .split(sep=' ')[0]
         
@@ -46,18 +52,18 @@ class regularizer(object):
             if reg_name == 'inrr':
                 return inrr(r=parameter[0],mode=parameter[1],device = self.device,act_name=parameter[2])
             elif reg_name == 'splitinrr':
-                return inrr(r=parameter[0],mode='row',device = self.device,act_name=parameter[2])
+                return inrr(r=parameter[0],mode=0,device = self.device,act_name=parameter[2])
             elif reg_name == 'air':
                 return air(size=parameter[0],mode=parameter[1],device=self.device)
             elif reg_name == 'splitair':
-                return air(size=parameter[0],mode='row',device=self.device)
+                return air(size=parameter[0],mode=0,device=self.device)
         else:
             raise('Wrong regularization name = ',reg_name)
 
     def cal(self,data,data_shape,net):
         if isinstance(data[-1],np.ndarray):
             # split inr mode
-            cor_in,_,_ = data
+            cor_in,_,_,_ = data
             for i,cor_split in enumerate(cor_in):
                 cor_in[i] = to_device(cor_split,self.device)
             M = net(cor_in)
@@ -70,12 +76,12 @@ class regularizer(object):
                 pre_nowt = net(x_in)
                 M = t.cat([M,pre_nowt],dim=0)
         
-        loss_all = 0
+        loss_all = to_device(t.tensor(0, dtype=t.float32),self.device)
         for reg_name in self.reg_dict.keys():
             coef = self.parameters[reg_name][-1]
             if reg_name.split(sep=' ')[0] in ['splitinrr','splitair']:
                 i = int(reg_name.split(sep=' ')[1])
-                feature_i = net.net_list[0].net_list[i](cor_in[i])
+                feature_i = net.net_list[0].pre[i]
                 reg_loss = self.reg_dict[reg_name].cal(feature_i)
             else:
                 reg_loss = self.reg_dict[reg_name].cal(M.reshape(data_shape))
@@ -132,10 +138,23 @@ class fixed_reg(object):
         return t.norm(Var,p=self.parameter[0])/M.shape[0]
 
 
+def add_space(sent):
+    sent_new = ''
+    for i in range(2*len(sent)):
+        if i%2 == 0:
+            sent_new += sent[i//2]
+        else:
+            sent_new += ' '
+    return sent_new
+
+def get_opstr(mode=0,shape=(100,100)):
+    all_str = add_space(abc_str[:len(shape)])
+    change_str = add_space(abc_str[mode]+'('+abc_str[:mode]+abc_str[mode+1:len(shape)]+')')
+    return all_str+'-> '+change_str
 
 
 class inrr(object):
-    def __init__(self,r=256,mode='row',device = 0,act_name='siren'):
+    def __init__(self,r=256,mode=0,device = 0,act_name='siren'):
         """
         parameter: [r,mode,coef]
         """
@@ -163,17 +182,16 @@ class inrr(object):
         L = -A_1+t.mm(A_1,t.mm(Ones,Ones.T))*I_n # A_2 将邻接矩阵转化为拉普拉斯矩阵
         return L
 
+
     def cal(self,W):
-        if self.mode == 'col':
-            img = W
-        else:
-            img = W.T
-        n = img.shape[1]
+        opstr = get_opstr(mode=self.mode,shape=W.shape)
+        img = rearrange(W,opstr)
+        n = img.shape[0]
         coor = t.linspace(-1,1,n).reshape(-1,1)
         coor = to_device(coor,self.device)
         self.A = self.net(coor)@self.net(coor).T
         self.L = self.lap(self.A)
-        return t.trace(img@self.L@img.T)
+        return t.trace(img.T@self.L@img)/(img.shape[0]*img.shape[1])
 
     def init_opt(self):
         # Initial the optimizer of parameters in network
@@ -184,19 +202,19 @@ class inrr(object):
         self.opt.zero_grad()
 
 class air(object):
-    def __init__(self,size,mode='row',device=0):
+    def __init__(self,size,mode=0,device=0):
         self.device = device
-        if mode == 'row':
+        if mode == 0:
             self.net = self.init_net(size,mode)
         else:
             self.net = self.init_net(size,mode)
         self.net = to_device(self.net,device)
         self.opt = self.init_opt()
 
-    def init_net(self,n,mode='row'):
+    def init_net(self,n,mode=0):
         device = self.device
         class net(nn.Module):
-            def __init__(self,n,mode='row'):
+            def __init__(self,n,mode=0):
                 super(net,self).__init__()
                 self.n = n
                 self.A_0 = nn.Linear(n,n,bias=False)
@@ -214,12 +232,9 @@ class air(object):
                 A_3 = A_2 * (t.mm(Ones,Ones.T)-I_n) # A_3 将中间的元素都归零，作为邻接矩阵
                 A_4 = -A_3+t.mm(A_3,t.mm(Ones,Ones.T))*I_n # A_4 将邻接矩阵转化为拉普拉斯矩阵
                 self.lap = A_4
-                if self.mode == 'row':
-                    return t.trace(t.mm(W.T,t.mm(A_4,W)))#+l1 #行关系
-                elif self.mode == 'col':
-                    return t.trace(t.mm(W,t.mm(A_4,W.T)))#+l1 #列关系
-                elif self.mode == 'all':
-                    return t.trace(t.mm(W.T,t.mm(self.A_0.weight,W)))#+l1 #所有L
+                opstr = get_opstr(mode=self.mode,shape=W.shape)
+                W = rearrange(W,opstr)
+                return t.trace(t.mm(W.T,t.mm(A_4,W)))/(W.shape[0]*W.shape[1])#+l1 #行关系
         return net(n,mode)
 
     def step(self):

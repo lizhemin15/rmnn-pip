@@ -20,12 +20,7 @@ def add_noise(pic,mode='gaussian',parameter=0.1,seeds=88):
             p (float): 
         """
         #if img_np.shape
-        if len(img_np.shape) == 2:
-            h, w = img_np.shape
-            mask = np.random.choice((0, 1, 2), size=(h, w), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
-        else:
-            h, w, c = img_np.shape
-            mask = np.random.choice((0, 1, 2), size=(h, w, c), p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
+        mask = np.random.choice((0, 1, 2), size=img_np.shape, p=[SNR, (1 - SNR) / 2., (1 - SNR) / 2.])
         img_new = img_np.copy()
         img_new[mask == 1] = 1   # Salt noise
         img_new[mask == 2] = 0      # Peper Noise
