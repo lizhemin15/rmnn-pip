@@ -24,6 +24,16 @@ def load_mask(mask_type='random',random_rate=0.0,mask_path=None,data_shape=None,
             mask = np.expand_dims(mask,axis=2)
             mask = np.expand_dims(mask,axis=3)
         return np.zeros(data_shape)+mask
+    elif mask_type == 'patch':
+        mask = np.ones((data_shape[0],data_shape[1]))
+        mask[70:100,150:190] = 0
+        mask[200:230,200:230] = 0
+        if len(data_shape) == 3:
+            mask = np.expand_dims(mask,axis=2)
+        elif len(data_shape) == 4:
+            mask = np.expand_dims(mask,axis=2)
+            mask = np.expand_dims(mask,axis=3)
+        return np.zeros(data_shape)+mask
     elif mask_type == 'numpy':
         return np.load(mask_path)
     elif mask_type == 'down_sample':
