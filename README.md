@@ -1,6 +1,7 @@
 ![The framework of RMNN](./docs/image.png)
 # 中文版
 ## 什么是RMNN？
+RMNN全称为Represent Matrix with Neural Network，即使用神经网络来表征矩阵。
 实际上，RMNN不仅仅可以用来表征矩阵，其实对于张量以及非网格数据都是可以进行表征的。RMNN提供了高级API可以快速利用最新的信号表征方式，如 DMF (Deep Matrix Factorization)[1], INR (Implicit Neural Representation)[2], LRTFR (Low-Rank Tensor Function Representation)[3]. 此外还可以调用各种正则项，如 TV (Total Variation) [4,5], AIR (Adaptive and Implicit Regularization) [6], INRR (Implicit Neural Representation Regularizer) [7]. 用于求解多种逆问题，如数据缺失、去噪等。
 
 ## 如何使用？
